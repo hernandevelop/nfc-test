@@ -1,149 +1,66 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lector NFC Debug</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding: 20px;
-            background-color: #f4f4f9;
-            text-align: center;
-        }
-        h2 { color: #333; }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-bottom: 20px;
-            width: 100%;
-            max-width: 300px;
-        }
-        button:disabled { background-color: #ccc; }
-        
-        #console {
-            text-align: left;
-            background: #fff;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            min-height: 200px;
-            max-height: 400px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        /* Estilos para tipos de mensajes */
-        .log-info { color: #0056b3; border-bottom: 1px solid #eee; padding: 5px 0; }
-        .log-success { color: #28a745; font-weight: bold; border-bottom: 1px solid #eee; padding: 5px 0; }
-        .log-error { color: #dc3545; background-color: #fff0f0; border: 1px solid #ffcccc; padding: 5px; margin: 5px 0; border-radius: 4px; }
-        .log-warn { color: #856404; background-color: #fff3cd; padding: 5px; }
-    </style>
-</head>
-<body>
-
-    <h2>🔍 Lector NFC con Diagnóstico</h2>
-    <p>Asegúrate de tener el NFC encendido.</p>
-    
-    <button id="scanBtn">Activar Escaneo</button>
-    
-    <div id="console"></div>
-
-    <script>
+<script>
         const scanBtn = document.getElementById("scanBtn");
         const consoleDiv = document.getElementById("console");
 
-        // Función auxiliar para imprimir en pantalla
         function log(msg, type = 'info') {
             const p = document.createElement("div");
-            
-            // Añadir hora actual para saber cuándo ocurrió
-            const time = new Date().toLocaleTimeString();
-            p.innerHTML = `[${time}] ${msg}`;
-            
+            p.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
             p.className = `log-${type}`;
-            consoleDiv.prepend(p); // Pone el mensaje más nuevo arriba
+            consoleDiv.prepend(p);
         }
 
-        // 1. Capturador de errores globales (por si falla el propio JS)
-        window.onerror = function (msg, url, lineNo, columnNo, error) {
-            log(`❌ Error Crítico JS: ${msg} (Línea: ${lineNo})`, 'error');
-            return false;
+        // Capturar errores de sintaxis o ejecución general
+        window.onerror = function (msg, url, line, col, error) {
+            log(`❌ Crash JS: ${msg}`, 'error');
         };
 
         scanBtn.addEventListener("click", async () => {
-            log("Iniciando solicitud...", 'info');
+            log("Iniciando NDEFReader...", 'info');
 
-            // 2. Verificar soporte del navegador
             if (!("NDEFReader" in window)) {
-                log("❌ Tu navegador NO soporta Web NFC. <br>Requisito: Chrome en Android v89+", 'error');
+                log("❌ Tu navegador no tiene la API NDEFReader.", 'error');
                 return;
             }
 
             try {
                 const ndef = new NDEFReader();
-                
-                // 3. Intentar activar el escáner
                 await ndef.scan();
                 
-                log("✅ Servicio iniciado. Acerca una etiqueta...", 'success');
+                log("✅ Escaneo activo. Acerca la etiqueta.", 'success');
                 scanBtn.disabled = true;
-                scanBtn.innerText = "Escuchando...";
 
-                // 4. Manejo de Errores de LECTURA (cuando la etiqueta falla al leerse)
+                // --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
                 ndef.addEventListener("readingerror", (event) => {
-                    log("⚠️ Error de lectura física: ¿Moviste la etiqueta muy rápido o está vacía?", 'warn');
-                });
+                    // Imprimimos el evento completo en la consola del navegador (F12 o Debugging remoto)
+                    console.warn("Objeto Error Completo:", event);
 
-                // 5. Manejo de Lectura Exitosa
-                ndef.addEventListener("reading", ({ message, serialNumber }) => {
-                    log(`📡 Etiqueta detectada! ID: ${serialNumber}`, 'success');
+                    // Intentamos extraer información específica
+                    let errorMsg = "Error desconocido";
                     
-                    if (message.records.length === 0) {
-                        log("ℹ️ La etiqueta está vacía o sin formato NDEF.", 'warn');
+                    // A veces el error viene dentro de event.message, otras veces es solo el tipo de evento
+                    if(event.message) {
+                        errorMsg = event.message;
+                    } else if (event.error) {
+                         errorMsg = event.error;
+                    } else {
+                        errorMsg = "El navegador disparó 'readingerror' sin detalles.";
                     }
 
-                    for (const record of message.records) {
-                        const decoder = new TextDecoder(record.encoding);
-                        log(`📄 Tipo: ${record.recordType} | Datos: ${decoder.decode(record.data)}`, 'info');
-                    }
+                    log(`⚠️ <strong>ERROR DE LECTURA (RAW):</strong><br>${errorMsg}`, 'error');
+                    
+                    log(`ℹ️ Pista: Si la tarjeta es bancaria o de transporte, este error es normal (encriptación).`, 'warn');
+                });
+                // --------------------------------------
+
+                ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                    log(`📡 Leído OK. Serial: ${serialNumber}`, 'success');
+                    if (message.records.length === 0) log("La etiqueta está vacía.", 'warn');
                 });
 
             } catch (error) {
-                // 6. ANÁLISIS DETALLADO DEL ERROR
-                let explanation = "";
-
-                switch (error.name) {
-                    case "NotAllowedError":
-                        explanation = "El usuario denegó el permiso de NFC o cámara.";
-                        break;
-                    case "SecurityError":
-                        explanation = "Error de Seguridad: La web debe estar en HTTPS (candadito) o localhost.";
-                        break;
-                    case "NotSupportedError":
-                        explanation = "Hardware incompatible: El dispositivo no tiene NFC o está apagado en Ajustes.";
-                        break;
-                    case "NetworkError":
-                        explanation = "Error de red o el recurso está ocupado por otra app.";
-                        break;
-                    default:
-                        explanation = "Error desconocido.";
-                }
-
-                log(`❌ <strong>${error.name}</strong>: ${error.message}<br>👉 <em>${explanation}</em>`, 'error');
-                
-                // Reactivar botón para reintentar
+                // Errores de inicialización (Permisos, Hardware)
+                log(`❌ <strong>System Error (${error.name}):</strong> ${error.message}`, 'error');
                 scanBtn.disabled = false;
-                scanBtn.innerText = "Reintentar";
             }
         });
     </script>
-</body>
-</html>
