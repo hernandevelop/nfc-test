@@ -1,4 +1,62 @@
-<script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lector NFC Debug</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f9;
+            text-align: center;
+        }
+        h2 { color: #333; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 300px;
+        }
+        button:disabled { background-color: #ccc; }
+        
+        #console {
+            text-align: left;
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Estilos para tipos de mensajes */
+        .log-info { color: #0056b3; border-bottom: 1px solid #eee; padding: 5px 0; }
+        .log-success { color: #28a745; font-weight: bold; border-bottom: 1px solid #eee; padding: 5px 0; }
+        .log-error { color: #dc3545; background-color: #fff0f0; border: 1px solid #ffcccc; padding: 5px; margin: 5px 0; border-radius: 4px; }
+        .log-warn { color: #856404; background-color: #fff3cd; padding: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>🔍 Lector NFC con Diagnóstico</h2>
+    <p>Asegúrate de tener el NFC encendido.</p>
+    
+    <button id="scanBtn">Activar Escaneo</button>
+    
+    <div id="console"></div>
+
+    <script>
         const scanBtn = document.getElementById("scanBtn");
         const consoleDiv = document.getElementById("console");
 
@@ -64,3 +122,5 @@
             }
         });
     </script>
+</body>
+</html>
