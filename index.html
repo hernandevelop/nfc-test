@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lector NFC Web</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 400px;
+        }
+        h1 { color: #333; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #log {
+            margin-top: 20px;
+            text-align: left;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 100px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+        .status { font-weight: bold; margin-bottom: 10px; color: #555; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Lector NFC</h1>
+        <p class="status" id="statusText">Esperando acción...</p>
+        
+        <button id="scanButton">Iniciar Escaneo</button>
+
+        <div id="log">Los datos aparecerán aquí...</div>
+    </div>
+
+    <script>
+        const scanButton = document.getElementById("scanButton");
+        const statusText = document.getElementById("statusText");
+        const logDiv = document.getElementById("log");
+
+        // Función para escribir en el log visual
+        function log(message) {
+            logDiv.innerHTML = message + "<br><hr>" + logDiv.innerHTML;
+        }
+
+        scanButton.addEventListener("click", async () => {
+            log("Iniciando solicitud de NFC...");
+
+            // 1. Verificar si el navegador soporta NDEFReader
+            if (!('NDEFReader' in window)) {
+                statusText.innerText = "Error: Web NFC no soportado en este navegador.";
+                log("Tu navegador o dispositivo no soporta Web NFC. Prueba Chrome en Android.");
+                return;
+            }
+
+            try {
+                // 2. Instanciar el lector
+                const ndef = new NDEFReader();
+                
+                // 3. Iniciar el escaneo (Pide permisos al usuario)
+                await ndef.scan();
+                
+                statusText.innerText = "Estado: Escaneando... Acerca una etiqueta.";
+                scanButton.innerText = "Escaneando...";
+                scanButton.disabled = true;
+                log("Permiso concedido. Acerca una etiqueta NFC.");
+
+                // 4. Manejar errores de lectura
+                ndef.addEventListener("readingerror", () => {
+                    log("Error: No se pudo leer la etiqueta. Intenta de nuevo.");
+                });
+
+                // 5. Manejar lectura exitosa
+                ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                    log(`> Etiqueta detectada! Serial: <strong>${serialNumber}</strong>`);
+                    
+                    // Iterar sobre los registros guardados en la etiqueta
+                    for (const record of message.records) {
+                        log(`Tipo de Registro: ${record.recordType}`);
+                        log(`Mime Type: ${record.mediaType}`);
+                        
+                        // Decodificar datos de texto
+                        const textDecoder = new TextDecoder(record.encoding);
+                        const data = textDecoder.decode(record.data);
+                        log(`<strong>Datos: ${data}</strong>`);
+                    }
+                });
+
+            } catch (error) {
+                statusText.innerText = "Error al iniciar.";
+                log("Error: " + error);
+            }
+        });
+    </script>
+</body>
+</html>
